@@ -1,3 +1,3 @@
 # Healthdecode Pro paystack webhook
 
-Process transaction events pushed from paystack
+Process transaction/payments events pushed from paystack
