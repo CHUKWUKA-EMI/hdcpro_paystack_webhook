@@ -1,0 +1,21 @@
+# deploy to cloud functions
+steps:
+  # compile the go binary
+  - name: 'gcr.io/cloud-builders/go' # Use the official Go builder image
+    args: ['build', '-o', 'main'] # Compile the binary with the output name `main`
+
+  # deploy the compiled binary to cloud functions
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: [
+        'functions',
+        'deploy',
+        'paystack_webhook',
+        '--runtime',
+        'go121',
+        '--trigger-http',
+        '--entry-point',
+        'PaystackWebhook',
+        '--allow-unauthenticated',
+        '--source',
+        '.' # Deploy the current directory
+      ]
