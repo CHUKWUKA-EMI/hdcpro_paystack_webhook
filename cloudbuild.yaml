@@ -1,15 +1,5 @@
 # deploy to cloud functions
 steps:
-  # download and compile the go modules
-  - name: 'gcr.io/cloud-builders/go'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        export PROJECT_ROOT=$(pwd)
-        go mod download
-        go build -o main .
-
   # deploy the compiled binary to cloud functions
   - name: 'gcr.io/cloud-builders/gcloud'
     args: [
