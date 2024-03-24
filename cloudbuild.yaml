@@ -1,5 +1,8 @@
 # deploy to cloud functions
 steps:
+  # download the go modules
+  - name: 'gcr.io/cloud-builders/go'
+    args: ['mod', 'download']
   # compile the go binary
   - name: 'gcr.io/cloud-builders/go' # Use the official Go builder image
     args: ['build', '-o', 'main'] # Compile the binary with the output name `main`
