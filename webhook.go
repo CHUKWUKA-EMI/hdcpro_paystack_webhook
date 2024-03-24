@@ -12,6 +12,8 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
+// import "$PROJECT_ROOT"
+
 func init() {
 	functions.HTTP("PaystackWebhook", PaystackWebhook)
 }
