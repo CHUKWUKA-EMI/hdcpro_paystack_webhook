@@ -12,9 +12,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const userTable string = "users"
-const userSubscriptionTable string = "user_subscriptions"
-
 func createDatabaseConnection(context context.Context) *pgx.Conn {
 	connection, err := pgx.Connect(context, os.Getenv("DATABASE_URL"))
 	if err != nil {
@@ -45,7 +42,7 @@ func getUserByEmail(tx pgx.Tx, email string) (*user, error) {
 	return &user, nil
 }
 
-func getUserSubscriptionByUserID(tx pgx.Tx, userSubscriptionID, userID uint64) (*userSubscription, error) {
+func getUserSubscriptionByUserID(tx pgx.Tx, userSubscriptionID, userID int32) (*userSubscription, error) {
 	var userSubscription userSubscription
 	row := tx.QueryRow(context.Background(), "SELECT id, user_id, subscription_id, is_active FROM user_subscriptions WHERE id=$1 AND user_id = $2", userSubscriptionID, userID)
 	err := row.Scan(&userSubscription.ID, &userSubscription.UserID, &userSubscription.SubscriptionID, &userSubscription.IsActive)
@@ -79,17 +76,17 @@ func processSubscriptionPayment(tx pgx.Tx, event paystackEvent, userSubscription
 	return nil
 }
 
-func updateOnboardingStep(tx pgx.Tx, userID uint64) error {
+func updateOnboardingStep(tx pgx.Tx, userID int32) error {
 	_, err := tx.Exec(context.Background(), "UPDATE users SET onboarding_step = $1 WHERE id = $2", "onboarded", userID)
 	return err
 }
 
-func updateUserCredits(tx pgx.Tx, user *user, amountInNaira float64) error {
+func updateUserCredits(tx pgx.Tx, user *user, amountInNaira float32) error {
 
 	fmt.Println("CURRENT USER CREDITS == ", *user.Credits, "USER ID: ", user.ID)
 	fmt.Println("AMOUNT TO ADD IN NAIRA == ", amountInNaira)
 	fmt.Println("UPDATE ATTEMPTED AT:", time.Now())
-	var totalCredits float64
+	var totalCredits float32
 	if user.Credits == nil {
 		totalCredits = amountInNaira
 	} else {
@@ -99,25 +96,18 @@ func updateUserCredits(tx pgx.Tx, user *user, amountInNaira float64) error {
 	return err
 }
 
-func extractUserSubscriptionID(event paystackEvent) (uint64, error) {
+func extractUserSubscriptionID(event paystackEvent) (int32, error) {
 	for _, v := range event.Data.Metadata.CustomFields {
 		if v.VariableName == "user_subscription_id" {
-			userSubscriptionID, err := strconv.ParseUint(v.Value, 10, 64)
+			result, err := strconv.ParseInt(v.Value, 10, 32)
 			if err != nil {
 				return 0, err
 			}
+			userSubscriptionID := int32(result)
 			return userSubscriptionID, nil
 		}
 	}
 	return 0, errors.New("user subscription ID not found")
-}
-
-func parseAmount(amountStr string) (float64, error) {
-	amount, err := strconv.ParseFloat(amountStr, 64)
-	if err != nil {
-		return 0, err
-	}
-	return amount / 100, nil
 }
 
 func validatePaymentPurpose(event paystackEvent) error {
@@ -135,6 +125,7 @@ func processPaymentEvent(context context.Context, conn *pgx.Conn, event paystack
 		return err
 	}
 
+	/* trunk-ignore(golangci-lint/errcheck) */
 	defer tx.Rollback(context)
 
 	user, err := getUserByEmail(tx, event.Data.Customer.Email)

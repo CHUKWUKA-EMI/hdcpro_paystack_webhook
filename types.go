@@ -30,7 +30,7 @@ type customer struct {
 type data struct {
 	ID          uint     `json:"id"`
 	Reference   string   `json:"reference"`
-	Amount      float64  `json:"amount"`
+	Amount      float32  `json:"amount"`
 	Currency    string   `json:"currency"`
 	Transaction string   `json:"transaction"`
 	Status      string   `json:"status"`
@@ -46,14 +46,14 @@ type paystackEvent struct {
 }
 
 type user struct {
-	ID      uint64   `json:"id"`
+	ID      int32    `json:"id"`
 	Email   string   `json:"email"`
-	Credits *float64 `json:"credits"`
+	Credits *float32 `json:"credits"`
 }
 
 type userSubscription struct {
-	ID             uint64 `json:"id"`
-	UserID         uint64 `json:"user_id" binding:"required"`
+	ID             int32  `json:"id"`
+	UserID         int32  `json:"user_id" binding:"required"`
 	SubscriptionID string `json:"subscription_id" binding:"required"`
 	IsActive       bool   `json:"is_active"`
 }
