@@ -22,7 +22,7 @@ func isAllowedIncomingRequestIP(remoteIP string) bool {
 	// check if the request is from paystack
 	allowedIPs := os.Getenv("ALLOWED_IP_ADDRESSES")
 	allowedIPAddressesList := strings.Split(allowedIPs, ",")
-	if slices.Contains(allowedIPAddressesList, remoteIP) == false {
+	if !slices.Contains(allowedIPAddressesList, remoteIP) {
 		log.Println("Request is not from Paystack")
 		return false
 	}

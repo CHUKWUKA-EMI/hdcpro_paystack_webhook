@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -42,7 +42,7 @@ func getUserByEmail(tx pgx.Tx, email string) (*user, error) {
 	return &user, nil
 }
 
-func getUserSubscriptionByUserID(tx pgx.Tx, userSubscriptionID, userID int32) (*userSubscription, error) {
+func getUserSubscriptionByUserID(tx pgx.Tx, userSubscriptionID, userID uuid.UUID) (*userSubscription, error) {
 	var userSubscription userSubscription
 	row := tx.QueryRow(context.Background(), "SELECT id, user_id, subscription_id, is_active FROM user_subscriptions WHERE id=$1 AND user_id = $2", userSubscriptionID, userID)
 	err := row.Scan(&userSubscription.ID, &userSubscription.UserID, &userSubscription.SubscriptionID, &userSubscription.IsActive)
@@ -76,7 +76,7 @@ func processSubscriptionPayment(tx pgx.Tx, event paystackEvent, userSubscription
 	return nil
 }
 
-func updateOnboardingStep(tx pgx.Tx, userID int32) error {
+func updateOnboardingStep(tx pgx.Tx, userID uuid.UUID) error {
 	_, err := tx.Exec(context.Background(), "UPDATE users SET onboarding_step = $1 WHERE id = $2", "onboarded", userID)
 	return err
 }
@@ -96,18 +96,19 @@ func updateUserCredits(tx pgx.Tx, user *user, amountInNaira float32) error {
 	return err
 }
 
-func extractUserSubscriptionID(event paystackEvent) (int32, error) {
+func extractUserSubscriptionID(event paystackEvent) (*uuid.UUID, error) {
 	for _, v := range event.Data.Metadata.CustomFields {
 		if v.VariableName == "user_subscription_id" {
-			result, err := strconv.ParseInt(v.Value, 10, 32)
+			//decode string as uuid
+			result, err := uuid.Parse(v.Value)
 			if err != nil {
-				return 0, err
+				return nil, err
 			}
-			userSubscriptionID := int32(result)
-			return userSubscriptionID, nil
+
+			return &result, nil
 		}
 	}
-	return 0, errors.New("user subscription ID not found")
+	return nil, errors.New("user subscription ID not found")
 }
 
 func validatePaymentPurpose(event paystackEvent) error {
@@ -139,7 +140,7 @@ func processPaymentEvent(context context.Context, conn *pgx.Conn, event paystack
 		return err
 	}
 
-	userSubscription, err := getUserSubscriptionByUserID(tx, userSubscriptionID, user.ID)
+	userSubscription, err := getUserSubscriptionByUserID(tx, *userSubscriptionID, user.ID)
 	if err != nil {
 
 		return err

@@ -1,5 +1,7 @@
 package webhook
 
+import "github.com/google/uuid"
+
 // Purpose is the purpose of a payment
 type Purpose string
 
@@ -46,14 +48,14 @@ type paystackEvent struct {
 }
 
 type user struct {
-	ID      int32    `json:"id"`
-	Email   string   `json:"email"`
-	Credits *float32 `json:"credits"`
+	ID      uuid.UUID `json:"id"`
+	Email   string    `json:"email"`
+	Credits *float32  `json:"credits"`
 }
 
 type userSubscription struct {
-	ID             int32  `json:"id"`
-	UserID         int32  `json:"user_id" binding:"required"`
-	SubscriptionID string `json:"subscription_id" binding:"required"`
-	IsActive       bool   `json:"is_active"`
+	ID             uuid.UUID `json:"id"`
+	UserID         uuid.UUID `json:"user_id" binding:"required"`
+	SubscriptionID string    `json:"subscription_id" binding:"required"`
+	IsActive       bool      `json:"is_active"`
 }
