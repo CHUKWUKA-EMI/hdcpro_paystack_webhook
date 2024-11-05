@@ -62,6 +62,8 @@ type User struct {
 	ID               primitive.ObjectID `json:"id" bson:"_id"`
 	Email            string             `json:"email" bson:"email"`
 	Credits          *float32           `json:"credits" bson:"credits"`
+	UpdatedAt        time.Time          `json:"updatedAt" bson:"updated_at"`
+	OnboardingStep   string             `json:"onboardingStep" bson:"onboarding_step"`
 	UserSubscription *UserSubscription  `json:"subscription" bson:"subscription"`
 }
 

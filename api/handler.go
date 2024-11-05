@@ -19,60 +19,37 @@ func ProcessPaystackWebhook(payload types.PaystackEvent, dbClient *mongo.Client)
 
 func processPaymentEvent(context context.Context, dbClient *mongo.Client, event types.PaystackEvent) error {
 
-	// start a session
-	session, err := dbClient.StartSession()
-	if err != nil {
-		return err
-	}
-	// defer session end
-	defer session.EndSession(context)
-
-	// start transaction
-	err = session.StartTransaction()
-	if err != nil {
-		return err
-	}
-
-	userCollection := dbClient.Database("healthdecodepro_db").Collection("users")
+	db := dbClient.Database("healthdecodepro_db")
+	userCollection := db.Collection("users")
 
 	user, err := getUserByEmail(context, userCollection, event.Data.Customer.Email)
 	if err != nil {
-		session.AbortTransaction(context)
 		return err
 	}
 
 	if user.UserSubscription == nil {
-		session.AbortTransaction(context)
 		return errors.New("user subscription is null")
 	}
 
 	if err := validatePaymentPurpose(event); err != nil {
-		session.AbortTransaction(context)
 		return err
 	}
 
-	if err := processSubscriptionPayment(context, userCollection, event, *user); err != nil {
-		session.AbortTransaction(context)
+	if err := processSubscriptionPayment(context, dbClient, userCollection, event, *user); err != nil {
 		return err
 	}
 
-	if err := session.CommitTransaction(context); err != nil {
-		return err
-	}
 	return nil
 }
 
-func processSubscriptionPayment(ctx context.Context, userCollection *mongo.Collection, event types.PaystackEvent, user types.User) error {
+func processSubscriptionPayment(ctx context.Context, dbClient *mongo.Client, userCollection *mongo.Collection, event types.PaystackEvent, user types.User) error {
 	userSubscription := *user.UserSubscription
 
-	if event.Data.Metadata.PaymentPurpose == types.CreditTopUp {
-		if !userSubscription.IsActive {
-			return errors.New("user subscription is not active")
-		}
-		return nil
+	if event.Data.Metadata.PaymentPurpose == types.CreditTopUp && !userSubscription.IsActive {
+		return errors.New("user subscription is not active")
 	}
 
-	if event.Data.Metadata.PaymentPurpose == types.SubscriptionUpdated && userSubscription.IsActive {
+	if event.Data.Metadata.PaymentPurpose != types.CreditTopUp && userSubscription.IsActive {
 		return errors.New("user subscription is already active")
 	}
 
@@ -90,26 +67,47 @@ func processSubscriptionPayment(ctx context.Context, userCollection *mongo.Colle
 	}
 
 	log.Println("Updating user & subscription")
+
+	filter := bson.M{"email": event.Data.Customer.Email}
 	updateData := bson.M{
 		"subscription.is_active":  true,
 		"subscription.updated_at": time.Now(),
 		"credits":                 totalCredits,
 		"updated_at":              time.Now(),
 	}
+
 	if event.Data.Metadata.PaymentPurpose == types.SubscriptionAdded {
 		updateData["onboarding_step"] = "onboarded"
 	}
 
-	result, err := userCollection.UpdateOne(ctx,
-		bson.M{"email": event.Data.Customer.Email},
-		bson.M{"$set": updateData})
+	// start a session
+	session, err := dbClient.StartSession()
+	if err != nil {
+		return err
+	}
+	// defer session end
+	defer session.EndSession(ctx)
 
+	// start transaction
+	err = session.StartTransaction()
 	if err != nil {
 		return err
 	}
 
+	result, err := userCollection.UpdateOne(ctx, filter, bson.M{"$set": updateData})
+
+	if err != nil {
+		session.AbortTransaction(ctx)
+		return err
+	}
+
 	if result.MatchedCount == 0 {
+		session.AbortTransaction(ctx)
 		return errors.New("user not found")
+	}
+
+	if err := session.CommitTransaction(ctx); err != nil {
+		return err
 	}
 
 	return nil

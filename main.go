@@ -6,6 +6,7 @@ import (
 
 	awslambda "github.com/chukwuka-emi/healthdecodepro/paystack_webhook/platform/aws"
 	"github.com/chukwuka-emi/healthdecodepro/paystack_webhook/utils"
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -13,6 +14,7 @@ import (
 var DBClient *mongo.Client
 
 func init() {
+	godotenv.Load()
 	db, err := utils.ConnectDB(os.Getenv("DB_URL"))
 	if err != nil {
 		log.Fatalf("Error connecting to database: %v", err)
